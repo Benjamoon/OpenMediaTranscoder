@@ -214,4 +214,6 @@ USE_SYSTEM_FFMPEG=false bun run src/index.ts
 
 ## License
 
-MIT
+MIT... Idk, do whatever you want! Took 5 minutes with a bit of help from Mr Claude.
+
+Feel free to fix up the code quality a bit
