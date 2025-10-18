@@ -1,0 +1,38 @@
+# Node modules
+node_modules/
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary files
+/tmp/
+*.tmp
+
+# Environment files (don't copy secrets)
+.env
+.env.*
+
+# Documentation
+README.md
+*.md
+
+# CI/CD
+.github/
+
