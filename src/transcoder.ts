@@ -39,7 +39,10 @@ export interface TranscodedFile {
  * Get video resolution using ffprobe
  */
 async function getVideoResolution(inputFile: string): Promise<{ width: number; height: number }> {
-    const ffprobePath = join(process.cwd(), "bin", "ffprobe");
+    // Use system ffprobe in Docker, or local bin/ffprobe for development
+    const ffprobePath = process.env.USE_SYSTEM_FFMPEG === "true"
+        ? "ffprobe"
+        : join(process.cwd(), "bin", "ffprobe");
 
     const proc = spawn({
         cmd: [
@@ -80,7 +83,10 @@ export async function transcodeToHLS(
 ): Promise<TranscodedFile[]> {
     const workDir = `/tmp/transcode-${crypto.randomUUID()}`;
     const inputFile = join(workDir, "input.mp4");
-    const ffmpegPath = join(process.cwd(), "bin", "ffmpeg");
+    // Use system ffmpeg in Docker, or local bin/ffmpeg for development
+    const ffmpegPath = process.env.USE_SYSTEM_FFMPEG === "true"
+        ? "ffmpeg"
+        : join(process.cwd(), "bin", "ffmpeg");
     const qualities = options.qualities ?? DEFAULT_QUALITIES;
 
     try {
@@ -255,7 +261,10 @@ function parseBitrate(bitrate: string): number {
  * Get video duration in seconds
  */
 async function getVideoDuration(inputFile: string): Promise<number> {
-    const ffprobePath = join(process.cwd(), "bin", "ffprobe");
+    // Use system ffprobe in Docker, or local bin/ffprobe for development
+    const ffprobePath = process.env.USE_SYSTEM_FFMPEG === "true"
+        ? "ffprobe"
+        : join(process.cwd(), "bin", "ffprobe");
 
     const proc = spawn({
         cmd: [

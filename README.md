@@ -193,7 +193,10 @@ The transcoder automatically skips quality levels higher than the source resolut
 
 ### Prerequisites
 - [Bun](https://bun.sh) >= 1.0
-- FFmpeg and FFprobe binaries in `bin/`
+- FFmpeg and FFprobe installed locally
+  - macOS: `brew install ffmpeg`
+  - Ubuntu: `sudo apt install ffmpeg`
+  - Or place binaries in `bin/` directory
 
 ### Install Dependencies
 ```bash
@@ -202,7 +205,11 @@ bun install
 
 ### Run Locally
 ```bash
+# If FFmpeg is in your PATH
 bun run src/index.ts
+
+# Or if using local bin/ directory
+USE_SYSTEM_FFMPEG=false bun run src/index.ts
 ```
 
 ## License
