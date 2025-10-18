@@ -18,7 +18,7 @@ A high-performance video transcoding service that converts videos to HLS (HTTP L
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/OpenMediaTranscoder.git
+   git clone https://github.com/Benjamoon/OpenMediaTranscoder.git
    cd OpenMediaTranscoder
    ```
 
