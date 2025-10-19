@@ -10,7 +10,8 @@ A high-performance video transcoding service that converts videos to HLS (HTTP L
 - ☁️ **S3-Compatible** - Works with any S3-compatible storage (AWS, MinIO, R2, etc.)
 - 📊 **Progress Tracking** - Real-time progress updates during transcoding
 - 🪝 **Webhooks** - Automatic notifications on job completion
-- 🚀 **Fast** - Built with Bun and FFmpeg
+- 🚀 **Fast** - Built with Bun and static FFmpeg binaries
+- 🐳 **Docker-ready** - Multi-stage build with optimized image size
 
 ## Quick Start
 

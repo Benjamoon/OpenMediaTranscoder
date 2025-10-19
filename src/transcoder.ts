@@ -15,7 +15,7 @@ export interface TranscodeOptions {
     segmentDuration?: number;  // seconds per segment, default 10
     qualities?: QualityLevel[];  // Custom quality levels, or use defaults
     generateThumbnails?: boolean;  // Generate poster + scrubbing thumbnails, default true
-    thumbnailInterval?: number;  // Seconds between scrubbing thumbnails, default 10
+    thumbnailInterval?: number;  // Seconds between scrubbing thumbnails, default 3
     onProgress?: (currentQuality: string, completedQualities: string[], totalQualities: number) => void;
 }
 
@@ -301,6 +301,11 @@ interface ThumbnailFile {
     contentType: string;
 }
 
+interface ThumbnailDimensions {
+    width: number;
+    height: number;
+}
+
 /**
  * Generate poster thumbnail and scrubbing thumbnails
  */
@@ -348,7 +353,7 @@ async function generateThumbnails(
     }
 
     // Generate scrubbing thumbnails
-    const interval = options.thumbnailInterval ?? 10;
+    const interval = options.thumbnailInterval ?? 3;
     const thumbCount = Math.floor(duration / interval);
 
     if (thumbCount > 0) {
@@ -371,7 +376,8 @@ async function generateThumbnails(
 
         exitCode = await proc.exited;
         if (exitCode !== 0) {
-            console.warn("Failed to generate scrubbing thumbnails");
+            const stderr = await new Response(proc.stderr).text();
+            console.warn("Failed to generate scrubbing thumbnails:", stderr);
         } else {
             // Create sprite sheet from individual thumbnails
             const thumbFiles = (await readdir(thumbDir))
@@ -379,22 +385,28 @@ async function generateThumbnails(
                 .sort();
 
             if (thumbFiles.length > 0) {
+                // Get actual dimensions from first thumbnail
+                const firstThumbPath = join(thumbDir, thumbFiles[0]);
+                const thumbDimensions = await getImageDimensions(firstThumbPath, ffmpegPath);
+
                 // Calculate sprite sheet dimensions (10 columns)
                 const cols = 10;
                 const rows = Math.ceil(thumbFiles.length / cols);
                 const spriteFile = join(thumbDir, "sprites.jpg");
 
-                // Create sprite sheet using FFmpeg tile filter
-                const tileInputs: string[] = [];
-                for (const file of thumbFiles) {
-                    tileInputs.push("-i", join(thumbDir, file));
-                }
+                // Create input list for FFmpeg concat
+                const inputPattern = join(thumbDir, "thumb-%03d.jpg");
 
+                // Use FFmpeg with tile filter
+                // Important: use -vframes to read all input frames before tiling
                 proc = spawn({
                     cmd: [
                         ffmpegPath,
-                        ...tileInputs,
-                        "-filter_complex", `tile=${cols}x${rows}`,
+                        "-start_number", "1",  // Start from thumb-001.jpg
+                        "-i", inputPattern,
+                        "-vframes", String(thumbFiles.length),  // Read this many input frames
+                        "-filter_complex", `tile=${cols}x${rows}:padding=0:margin=0`,
+                        "-frames:v", "1",  // Output 1 frame (the tiled sprite sheet)
                         "-q:v", "5",
                         spriteFile
                     ],
@@ -411,13 +423,21 @@ async function generateThumbnails(
                         contentType: "image/jpeg",
                     });
 
-                    // Generate WebVTT file for scrubbing thumbnails
-                    const vttContent = generateThumbnailVTT(thumbFiles.length, interval, cols);
+                    // Generate WebVTT file with actual dimensions
+                    const vttContent = generateThumbnailVTT(
+                        thumbFiles.length,
+                        interval,
+                        cols,
+                        thumbDimensions
+                    );
                     thumbnails.push({
                         filename: "thumbnails.vtt",
                         data: Buffer.from(vttContent),
                         contentType: "text/vtt",
                     });
+                } else {
+                    const stderr = await new Response(proc.stderr).text();
+                    console.warn("Failed to create sprite sheet:", stderr);
                 }
             }
         }
@@ -427,13 +447,53 @@ async function generateThumbnails(
 }
 
 /**
+ * Get image dimensions using ffprobe
+ */
+async function getImageDimensions(imagePath: string, ffprobePath: string): Promise<ThumbnailDimensions> {
+    const proc = spawn({
+        cmd: [
+            ffprobePath.replace("ffmpeg", "ffprobe"),
+            "-v", "error",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=width,height",
+            "-of", "json",
+            imagePath
+        ],
+        stdout: "pipe",
+        stderr: "pipe",
+    });
+
+    const output = await new Response(proc.stdout).text();
+    const exitCode = await proc.exited;
+
+    if (exitCode !== 0) {
+        // Fallback to assumed 16:9 at 160px width
+        return { width: 160, height: 90 };
+    }
+
+    const data = JSON.parse(output);
+    const stream = data.streams?.[0];
+
+    if (!stream?.width || !stream?.height) {
+        return { width: 160, height: 90 };
+    }
+
+    return { width: stream.width, height: stream.height };
+}
+
+/**
  * Generate WebVTT file for thumbnail sprites
  */
-function generateThumbnailVTT(count: number, interval: number, cols: number): string {
+function generateThumbnailVTT(
+    count: number,
+    interval: number,
+    cols: number,
+    dimensions: ThumbnailDimensions
+): string {
     let vtt = "WEBVTT\n\n";
 
-    const thumbWidth = 160;
-    const thumbHeight = 90;  // Assuming 16:9 aspect ratio
+    const thumbWidth = dimensions.width;
+    const thumbHeight = dimensions.height;
 
     for (let i = 0; i < count; i++) {
         const startTime = i * interval;
